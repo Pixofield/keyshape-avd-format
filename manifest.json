@@ -1,0 +1,37 @@
+{
+    "id": "https://github.com/Pixofield/keyshape-avd-format",
+    "name": "AVD Format",
+    "keyshape_manifest_version": 1,
+    "version": "1.0",
+    "homepage": "https://github.com/Pixofield/keyshape-avd-format",
+    "author": "Pixofield Ltd",
+    "description": "Import and export Animated Vector Drawables and Vector Drawables.",
+    "license": "MIT",
+    "exporters": [
+      {
+        "exporter_id": "vd",
+        "name": "Vector Drawable",
+        "file_suffix": "xml",
+        "script": "exporter.js",
+        "filename_handler": "getFilenames",
+        "export_handler": "exportVD"
+      },
+      {
+        "exporter_id": "avd",
+        "name": "Animated Vector Drawable",
+        "file_suffix": "xml",
+        "script": "exporter.js",
+        "filename_handler": "getFilenames",
+        "export_handler": "exportAnimatedVD"
+      }
+    ],
+    "importers": [
+      {
+        "name": "Animated Vector Drawable",
+        "file_suffixes": [ "xml" ],
+        "script": "importer.js",
+        "recognize_handler": "doRecognize",
+        "import_handler": "doImport"
+      }
+    ]
+}
