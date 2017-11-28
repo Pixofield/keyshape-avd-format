@@ -10,7 +10,8 @@ for editing. It is also possible to export animated vector drawables.
 
 ## Installing
 
-1. Go to the Releases tab and download the latest _AVD-format.keyshapeplugin_
+1. Go to [Releases](https://github.com/Pixofield/keyshape-avd-format/releases/latest) 
+   and download _AVD-format.keyshapeplugin_
 2. Double-click the downloaded _AVD-format.keyshapeplugin_ to install it in Keyshape
 
 The plugin can be updated with the same procedure: download the latest release and install it.
