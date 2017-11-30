@@ -299,6 +299,8 @@ function processRenderable(children)
             elementStack.push(elem);
             processRenderable(child.children);
             elementStack.pop();
+            // restore parent element, because pivot element may have changed it
+            parentElem = elementStack[elementStack.length-1];
 
         } else if (child.tagName == "path") {
             let elem = ksdoc.createElement("path");
