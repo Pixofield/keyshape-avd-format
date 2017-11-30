@@ -598,6 +598,14 @@ const animationPropertyNameToSvgProperty = {
     "alpha":        { svgProp: "opacity", type: "floatType" }
 };
 
+function convertValue(svgProp, value)
+{
+    if (svgProp == "fill" || svgProp == "stroke") {
+        value = androidColorToSvgColor(value, true);
+    }
+    return value;
+}
+
 function processObjectAnimator(animator, elem, beginTime)
 {
     if (animator.tagName != "objectAnimator") {
@@ -677,8 +685,10 @@ function processPropertyValueHolder(obj, elem, beginTime, startOffset, duration,
     let valueFrom = obj.attributes["android:valueFrom"];
     let valueTo = obj.attributes["android:valueTo"];
 
-    elem.timeline().setKeyframe(svgProp, beginTime+startOffset, valueFrom, easing);
-    elem.timeline().setKeyframe(svgProp, beginTime+startOffset+duration, valueTo);
+    elem.timeline().setKeyframe(svgProp, beginTime+startOffset,
+                                convertValue(svgProp, valueFrom), easing);
+    elem.timeline().setKeyframe(svgProp, beginTime+startOffset+duration,
+                                convertValue(svgProp, valueTo));
     setRepeat(elem, svgProp, beginTime, startOffset, duration, repeatCount);
 }
 
@@ -695,8 +705,8 @@ function processKeyframes(obj, elem, beginTime, startOffset, duration, interpola
                 continue;
             }
             // TODO: keyframe can have an interpolator
-            elem.timeline().setKeyframe(svgProp, beginTime+startOffset+fraction*duration, value,
-                                        "linear");
+            elem.timeline().setKeyframe(svgProp, beginTime+startOffset+fraction*duration,
+                                        convertValue(svgProp, value), "linear");
         }
     }
     return foundKeyframes;
