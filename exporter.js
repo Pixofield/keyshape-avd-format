@@ -7,6 +7,9 @@ function getFilenames(userSelectedFileUrl)
     return [ userSelectedFileUrl ];
 }
 
+let RotateStr = !app.activeDocument ? "ks:rotate" :
+    app.activeDocument.documentElement.getProperty("ks:rotate") != null ? "ks:rotate" : "ks:rotation";
+
 // Writes XML to a file
 // the objects in the object tree must have tagName, attributes and children keys
 class XmlWriter {
@@ -131,7 +134,7 @@ function copyTransformProperties(obj, element)
     copyId(element, obj, "_t");
     copyProperty(element, "ks:positionX", obj, "android:translateX", "0");
     copyProperty(element, "ks:positionY", obj, "android:translateY", "0");
-    copyProperty(element, "ks:rotate", obj, "android:rotation", "0");
+    copyProperty(element, RotateStr, obj, "android:rotation", "0");
     copyProperty(element, "ks:scaleX", obj, "android:scaleX", "1");
     copyProperty(element, "ks:scaleY", obj, "android:scaleY", "1");
 
@@ -378,7 +381,7 @@ function exportVD(userSelectedFileUrl)
 }
 
 // ks:skewX/Y is not included because AVD doesn't support skewing
-const animatableSvgToAndroidProperties = {
+let animatableSvgToAndroidProperties = {
     "ks:positionX":     { idsuffix: "_t", prop: "translateX", type: "floatType" },
     "ks:positionY":     { idsuffix: "_t", prop: "translateY", type: "floatType" },
     "ks:rotate":        { idsuffix: "_t", prop: "rotation", type: "floatType" },
@@ -395,6 +398,7 @@ const animatableSvgToAndroidProperties = {
     // opacity is only for the root element
     "opacity":          { idsuffix: "_o", prop: "alpha", type: "floatType" }
 };
+animatableSvgToAndroidProperties[RotateStr] = { idsuffix: "_t", prop: "rotation", type: "floatType" };
 
 function addRepeatCount(objectAnimator, begin, dur, repeatEnd)
 {
