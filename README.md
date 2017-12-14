@@ -1,7 +1,7 @@
 
 # Animated vector drawables for Keyshape
 
-This [Keyshape](https://www.pixofield.com) plugin adds support for importing and exporting
+This [Keyshape](https://www.keyshapeapp.com) plugin adds support for importing and exporting
 [vector drawables and animated vector drawables](https://developer.android.com/guide/topics/graphics/vector-drawable-resources.html)
 for Android apps.
 
@@ -10,8 +10,8 @@ for editing. It is also possible to export animated vector drawables.
 
 ## Installing
 
-1. Go to [Releases](https://github.com/Pixofield/keyshape-avd-format/releases/latest) 
-   and download _AVD-format.keyshapeplugin_
+1. Go to [Releases](https://github.com/Pixofield/keyshape-avd-format/releases) 
+   and download the latest _AVD-format.keyshapeplugin_
 2. Double-click the downloaded _AVD-format.keyshapeplugin_ to install it in Keyshape
 
 The plugin can be updated with the same procedure: download the latest release and install it.
