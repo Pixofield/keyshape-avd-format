@@ -24,8 +24,6 @@ XML tag.
 
 Most vector drawable features are imported successfully, but there are few limitations:
 
- * path trimming is not supported
- * clipping paths are not supported
  * pivotX and pivotY animations are not supported
  * easing interpolators (such as linear_out_slow_in) are approximated with cubic beziers
  * the alpha component in #AARRGGBB colors is ignored except in gradients
@@ -37,6 +35,8 @@ Most vector drawable features are imported successfully, but there are few limit
  * cannot read animations which derive values from the target object (all keyframes must explicitely
    define a value)
  * repeatCount is ignored if multiple objectAnimators target the same property
+ * only basic line animations made with path trim start, end and offset are supported
+ * path trim start, end and offset animations are mapped to SVG dash offset animations
 
 ## Exporting Vector Drawables
 
@@ -58,14 +58,18 @@ Vector drawables and animated vector drawables are exported into a single XML fi
 
 Exporting has few limitations:
 
- * path trimming is not supported
  * gradients can have maximum three color stops and their position is always at the start,
    center and end of the gradient
- * repeating is possible for properties with two keyframes only
  * text gets converted to paths
  * symbols create duplicate code, which can create large files
  * curved motion paths become straight motion paths
  * skew is not supported because AVDs don't support skewing
+ * clip paths only support path shape animations (no transform animations)
+ * only one path object under a clipPath is allowed
+ * only one clipPath object per object is allowed
+ * masks are treated as clip paths
+ * stroke dash offset animations are exported as path trimming animations
+ * repeating is not supported
 
 ## Required Android API levels
 
