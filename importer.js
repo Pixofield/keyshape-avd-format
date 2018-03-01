@@ -199,6 +199,7 @@ function doImport(filenameUrl)
     // vector: static graphics
     if (rootElement.tagName == "vector") {
         processVector(rootElement);
+        mapSkewToDash(ksdoc.documentElement);
         return;
     }
 
@@ -217,6 +218,7 @@ function doImport(filenameUrl)
     }
     processVector(drawable.children[0]);
     processAnimations(rootElement);
+    mapSkewToDash(ksdoc.documentElement);
 }
 
 function processVector(vector)
@@ -238,6 +240,106 @@ function processVector(vector)
     // process children
     elementStack = [ ksdoc.documentElement ];
     processRenderable(vector.children);
+}
+
+function removeAllKeyframes(element, property)
+{
+    if (!element.timeline().hasKeyframes(property)) {
+        return;
+    }
+    let kfs = element.timeline().getKeyframes(property);
+    for (let kf of kfs) {
+        element.timeline().removeKeyframe(property, kf.time);
+    }
+}
+
+// maps skew, dasharray and dashoffset (Android trim path start, end, offset)
+// to svg dasharray and offset
+function mapSkewToDash(element)
+{
+    for (let child of element.children) {
+        mapSkewToDash(child);
+    }
+    if (element.tagName != "path") {
+        return;
+    }
+    let pathLen = new KSPathData(element.getProperty("d")).getTotalLength();
+    let staticStart = 0;
+    let staticEnd = 1;
+    // trim start
+    if (element.hasProperty("ks:skewX")) {
+        staticStart = +element.getProperty("ks:skewX");
+    }
+    // trim end
+    if (element.hasProperty("stroke-dasharray")) {
+        staticEnd = +element.getProperty("stroke-dasharray");
+    }
+    // remove skew keyframes if they all have the same value to ensure roundtripping of
+    // exported line animations (it always writes out trim start animations)
+    if (element.timeline().hasKeyframes("ks:skewX")) {
+        let value = element.timeline().getKeyframes("ks:skewX")[0].value;
+        for (let kf of element.timeline().getKeyframes("ks:skewX")) {
+            if (kf.value != value) {
+                value = Infinity;
+                break;
+            }
+        }
+        if (value != Infinity) {
+            removeAllKeyframes(element, "ks:skewX");
+        }
+    }
+
+    // convert skew and stroke-dasharray animations to dash offset animation
+
+    if (element.timeline().hasKeyframes("ks:skewX")) { // start animation
+        let doff = +element.getProperty("stroke-dashoffset");
+        removeAllKeyframes(element, "stroke-dashoffset");
+        let kfs = element.timeline().getKeyframes("ks:skewX");
+        for (let i = kfs.length-1; i >= 0; --i) {
+            let kf = kfs[i];
+            element.timeline().setKeyframe("stroke-dashoffset", kf.time,
+                                           -(+kf.value+doff)*pathLen, kf.easing);
+        }
+        // set dash array
+        removeAllKeyframes(element, "stroke-dasharray");
+        element.setProperty("stroke-dasharray", pathLen);
+
+    } else if (element.timeline().hasKeyframes("stroke-dasharray")) { // end animation
+        let doff = +element.getProperty("stroke-dashoffset");
+        removeAllKeyframes(element, "stroke-dashoffset");
+        let kfs = element.timeline().getKeyframes("stroke-dasharray");
+        for (let i = kfs.length-1; i >= 0; --i) {
+            let kf = kfs[i];
+            element.timeline().setKeyframe("stroke-dashoffset", kf.time,
+                                           (-kf.value+doff-1)*pathLen, kf.easing);
+        }
+        // set dash array
+        removeAllKeyframes(element, "stroke-dasharray");
+        element.setProperty("stroke-dasharray", pathLen);
+
+    } else if (element.timeline().hasKeyframes("stroke-dashoffset")) { // offset animation
+        let start = +element.getProperty("ks:skewX");
+        for (let kf of element.timeline().getKeyframes("stroke-dashoffset")) {
+            element.timeline().setKeyframe("stroke-dashoffset", kf.time,
+                                           -(+kf.value+staticStart)*pathLen, kf.easing);
+        }
+        // set dash array
+        removeAllKeyframes(element, "stroke-dasharray");
+        let da = Math.ceil((staticEnd - staticStart) * pathLen * 100) / 100; // round to 2 decimals
+        element.setProperty("stroke-dasharray", da + " " + (pathLen-da));
+
+    } else { // no animations
+        let doff = +element.getProperty("stroke-dashoffset");
+        element.setProperty("stroke-dashoffset", -(doff+staticStart)*pathLen);
+        // set dash array
+        if (staticStart != 0 || staticEnd != 1) {
+            removeAllKeyframes(element, "stroke-dasharray");
+            let da = Math.ceil((staticEnd - staticStart) * pathLen * 100) / 100; // round to 2 decimals
+            element.setProperty("stroke-dasharray", da + " " + (pathLen-da));
+        }
+    }
+    removeAllKeyframes(element, "ks:skewX")
+    element.setProperty("ks:skewX", 0);
 }
 
 function convertFillRule(rule)
@@ -265,6 +367,7 @@ function processRenderable(children)
         return;
     }
     let parentElem = elementStack[elementStack.length-1];
+    let clipPathGroups = 0;
     for (let child of children) {
         if (child.tagName == "group") {
             let elem = ksdoc.createElement("g");
@@ -319,8 +422,31 @@ function processRenderable(children)
             copyProperty(child, "android:strokeMiterLimit", elem, "stroke-miterlimit");
             copyProperty(child, "android:fillType", elem, "fill-rule", convertFillRule);
             copyProperty(child, "android:pathData", elem, "d", fixPathData);
+            // temporarily copy trim start to skew
+            copyProperty(child, "android:trimPathStart", elem, "ks:skewX");
+            copyProperty(child, "android:trimPathEnd", elem, "stroke-dasharray");
+            copyProperty(child, "android:trimPathOffset", elem, "stroke-dashoffset");
             parentElem.append(elem);
+
+        } else if (child.tagName == "clip-path") {
+            // wrap clip-path and elements in a group so that SVG clipPath works correctly
+            let group = ksdoc.createElement("g");
+            parentElem.append(group);
+            elementStack.push(group);
+            parentElem = group;
+            clipPathGroups += 1;
+
+            let elem = ksdoc.createElement("path");
+            copyProperty(child, "android:name", elem, "id");
+            elem.setProperty("fill", "#000000"); // create black paths so they can be seen
+            copyProperty(child, "android:pathData", elem, "d", fixPathData);
+            let clipPath = ksdoc.createElement("clipPath");
+            clipPath.append(elem);
+            parentElem.append(clipPath);
         }
+    }
+    for (let i = 0; i < clipPathGroups; ++i) {
+        elementStack.pop();
     }
 }
 
@@ -509,7 +635,7 @@ function interpolatorToCubic(intpo)
         "accelerate_quad":      "cubic-bezier(0.35, 0, 0.705, 0.395)",
         "accelerate_cubic":     "cubic-bezier(0.54, 0, 0.685, 0.17)",
         "accelerate_quint":     "cubic-bezier(0.675, 0, 0.77, 0)",
-        "accelerate_decelerate": "cubic-bezier(0.375, 0, 0.63, 1)",
+        "accelerate_decelerate":"cubic-bezier(0.375, 0, 0.63, 1)",
         "anticipate":           "cubic-bezier(0.72, -0.30, 0.735, -0.115)",
         "anticipate_overshoot": "cubic-bezier(0.80, -0.675, 0.20, 1.675)",
         "bounce":               "linear",
@@ -597,7 +723,10 @@ const animationPropertyNameToSvgProperty = {
     "strokeAlpha":  { svgProp: "stroke-opacity", type: "floatType" },
     "fillAlpha":    { svgProp: "fill-opacity", type: "floatType" },
     "pathData":     { svgProp: "d", type: "pathType" },
-    "alpha":        { svgProp: "opacity", type: "floatType" }
+    "alpha":        { svgProp: "opacity", type: "floatType" },
+    "trimPathStart":{ svgProp: "ks:skewX", type: "floatType" },
+    "trimPathEnd":  { svgProp: "stroke-dasharray", type: "floatType" },
+    "trimPathOffset":{ svgProp: "stroke-dashoffset", type: "floatType" }
 };
 
 function convertValue(svgProp, value)
@@ -687,10 +816,10 @@ function processPropertyValueHolder(obj, elem, beginTime, startOffset, duration,
     let valueFrom = obj.attributes["android:valueFrom"];
     let valueTo = obj.attributes["android:valueTo"];
 
-    elem.timeline().setKeyframe(svgProp, beginTime+startOffset,
-                                convertValue(svgProp, valueFrom), easing);
     elem.timeline().setKeyframe(svgProp, beginTime+startOffset+duration,
                                 convertValue(svgProp, valueTo));
+    elem.timeline().setKeyframe(svgProp, beginTime+startOffset,
+                                convertValue(svgProp, valueFrom), easing);
     setRepeat(elem, svgProp, beginTime, startOffset, duration, repeatCount);
 }
 

@@ -94,7 +94,7 @@ function copyProperty(element, svgProp, obj, targetAttr, avdDefaultValue, conver
     if (converterCallback) {
         value = converterCallback(value, converterParam);
     }
-    if (value != avdDefaultValue) {
+    if (value != avdDefaultValue && value != null) {
         obj.attributes[targetAttr] = value;
     }
 }
@@ -142,7 +142,6 @@ function copyTransformProperties(obj, element)
     // work correctly. Children must be added under this extra group.
     let ax = element.getProperty("ks:anchorX");
     let ay = element.getProperty("ks:anchorY");
-    console.log("STATIC AXY "+ax+" "+ay);
     if (ax != 0 || ay != 0 || element.timeline().hasKeyframes("ks:anchorX") ||
             element.timeline().hasKeyframes("ks:anchorY")) {
         let aobj = {};
@@ -175,7 +174,6 @@ function toHex(colorComponent)
 // converts obj.red/green/blue/alpha to #aarrggbb or #rrggbb
 function rgbaToAndroidColor(obj)
 {
-    console.log("GOT COLOR: "+JSON.stringify(obj));
     if ((typeof obj.alpha == "undefined") || obj.alpha == 1) {
         return "#" + toHex(obj.red) + toHex(obj.green) + toHex(obj.blue);
     }
@@ -239,7 +237,6 @@ function copyColor(element, svgProp, obj, targetAttr)
         if (!obj.children) {
             obj.children = [];
         }
-        console.log("-------- GOT: "+JSON.stringify(aaptattr));
         obj.children.push(aaptattr);
     }
     // none is not set at all
@@ -266,6 +263,59 @@ function copyPathProperties(element, obj)
     copyProperty(element, "stroke-miterlimit", obj, "android:strokeMiterLimit", "4");
     copyProperty(element, "fill-rule", obj, "android:fillType", "nonZero", convertFillRule);
     copyProperty(element, "d", obj, "android:pathData", "");
+    // dasharray and dashoffset have been preprocessed so they can be just mapped to start and end
+    copyProperty(element, "stroke-dasharray", obj, "android:trimPathStart", "0");
+    copyProperty(element, "stroke-dashoffset", obj, "android:trimPathEnd", "1");
+}
+
+function transformElementPath(element, matrix)
+{
+    if (element.timeline().hasKeyframes("d")) {
+        let kfs = element.timeline().getKeyframes("d");
+        for (let kf of kfs) {
+            let oldd = kf.value;
+            let pd = new KSPathData(oldd);
+            let p2 = pd.transform(matrix);
+            element.timeline().setKeyframe("d", kf.time, p2, kf.easing);
+        }
+
+    } else {
+        let oldd = element.getProperty("d");
+        let pd = new KSPathData(oldd);
+        let p2 = pd.transform(matrix);
+        element.setProperty("d", p2);
+    }
+}
+
+function processClipPaths(element, gobj)
+{
+    for (let child of element.children) {
+        if (child.tagName != "clipPath" && child.tagName != "mask") {
+            continue;
+        }
+        // skip clipPaths and masks which have display="none"
+        if (child.getProperty("display") == "none") {
+            continue;
+        }
+        // objects under mask or clipPath
+        for (let ch of child.children) {
+            // skip elements which have display="none"
+            if (ch.getProperty("display") == "none") {
+                continue;
+            }
+            // a path under a clipPath or mask element becomes a clip-path android element
+            if (ch.tagName == "path") {
+                transformElementPath(ch, ch.timeline().getTransform(0));
+                let obj = {};
+                obj.tagName = "clip-path";
+                obj.attributes = {};
+                copyId(ch, obj, "_p");
+                copyProperty(ch, "d", obj, "android:pathData", "");
+                gobj.children.push(obj);
+                return; // only one mask or clip path is allowed so return
+            }
+        }
+    }
 }
 
 let numberOfPaths = 0;
@@ -287,7 +337,9 @@ function convertElement(element)
         copyPathProperties(element, objpath);
         obj.tagName = "group";
         gobj = copyTransformProperties(obj, element);
-        gobj.children = [ objpath ];
+        gobj.children = [];
+        processClipPaths(element, gobj);
+        gobj.children.push(objpath);
         return obj;
     }
 
@@ -295,6 +347,7 @@ function convertElement(element)
         obj.tagName = "group";
         gobj = copyTransformProperties(obj, element);
         gobj.children = [];
+        processClipPaths(element, gobj);
         for (let child of element.children) {
             // skip elements which have display="none"
             if (child.getProperty("display") == "none") {
@@ -332,6 +385,69 @@ function detachFromSymbols(doc, element)
     doc.cmd.detachFromSymbol();
 }
 
+function parseDashArray(da)
+{
+    da = da.replace(',', ' ');
+    da = da.replace(/\s+/g, ' ');
+    return da.split(' ');
+}
+
+function convertDashValue(value, pathLen)
+{
+    let res = value/pathLen;
+    if (res < 0) res = 0;
+    if (res > 1) res = 1;
+    return res.toFixed(3);
+}
+
+function removeAllKeyframes(element, property)
+{
+    if (!element.timeline().hasKeyframes(property)) {
+        return;
+    }
+    let kfs = element.timeline().getKeyframes(property);
+    for (let kf of kfs) {
+        element.timeline().removeKeyframe(property, kf.time);
+    }
+}
+
+function convertDashArrayToPathTrim(element)
+{
+    // convert the element tree recursively
+    for (let child of element.children) {
+        convertDashArrayToPathTrim(child);
+    }
+    if (element.tagName != "path") {
+        return;
+    }
+    // converts values, uses dasharray as trimPathStart and dashoffset as trimPathEnd
+    // the AVD exporter then maps dasharray and dashoffset to the Android properties
+    let da = element.getProperty("stroke-dasharray").trim();
+    if (da == "" || da == "none") {
+        removeAllKeyframes(element, "stroke-dashoffset");
+        removeAllKeyframes(element, "stroke-dasharray");
+        element.setProperty("stroke-dasharray", "0"); // default trim start
+        element.setProperty("stroke-dashoffset", "1"); // default trim end
+        return;
+    }
+    let dasharray = parseDashArray(da);
+    let pathLen = new KSPathData(element.getProperty("d")).getTotalLength();
+    if (!element.timeline().hasKeyframes("stroke-dashoffset")) {
+        let doff = element.getProperty("stroke-dashoffset");
+        element.setProperty("stroke-dasharray", convertDashValue(-doff, pathLen));
+        element.setProperty("stroke-dashoffset", convertDashValue((+dasharray[0])-doff, pathLen));
+    } else {
+        let kfs = element.timeline().getKeyframes("stroke-dashoffset");
+        for (let i = kfs.length-1; i >= 0; --i) {
+            let kf = kfs[i];
+            let doff = kf.value;
+            element.timeline().setKeyframe("stroke-dasharray",
+                                           kf.time, convertDashValue(-doff, pathLen), kf.easing);
+            element.timeline().setKeyframe("stroke-dashoffset",
+                            kf.time, convertDashValue((+dasharray[0])-doff, pathLen), kf.easing);
+        }
+    }
+}
 
 function createVectorDrawable(root, withNamespace)
 {
@@ -373,6 +489,9 @@ function exportVD(userSelectedFileUrl)
     // convert rects, ellipses and text to paths
     convertToPaths(app.activeDocument, root);
 
+    // path trimming
+    convertDashArrayToPathTrim(root);
+
     // create an object tree for a vector drawable
     let vd = createVectorDrawable(root, true);
 
@@ -395,22 +514,13 @@ let animatableSvgToAndroidProperties = {
     "stroke-opacity":   { idsuffix: "_p", prop: "strokeAlpha", type: "floatType" },
     "fill-opacity":     { idsuffix: "_p", prop: "fillAlpha", type: "floatType" },
     "d":                { idsuffix: "_p", prop: "pathData", type: "pathType" },
+    // dasharray and dashoffset have been preprocessed so they can be just mapped to start and end
+    "stroke-dasharray": { idsuffix: "_p", prop: "trimPathStart", type: "floatType" },
+    "stroke-dashoffset":{ idsuffix: "_p", prop: "trimPathEnd", type: "floatType" },
     // opacity is only for the root element
     "opacity":          { idsuffix: "_o", prop: "alpha", type: "floatType" }
 };
 animatableSvgToAndroidProperties[RotateStr] = { idsuffix: "_t", prop: "rotation", type: "floatType" };
-
-function addRepeatCount(objectAnimator, begin, dur, repeatEnd)
-{
-    if (repeatEnd) {
-        if (repeatEnd == Infinity) {
-            objectAnimator.attributes["android:repeatCount"] = "infinite";
-        } else {
-            // 0=play only once, 1=play the animation twice, fractions are not allowed
-            objectAnimator.attributes["android:repeatCount"] = Math.round((repeatEnd-begin) / dur)-1;
-        }
-    }
-}
 
 function addInterpolator(objectAnimator, easing)
 {
@@ -496,17 +606,37 @@ function createObjectAnimators(element, svgProp, androidProp, kfs, params)
             tagName: "objectAnimator",
             attributes: oattrs
         };
-        if (kfs.length == 2) { // add repeat only for 2 keyframes
-            addRepeatCount(objectAnimator, fromkf.time, tokf.time - fromkf.time, params.repeatEnd);
-        }
         addInterpolator(objectAnimator, fromkf.easing);
         animators.push(objectAnimator);
     }
     return animators;
 }
 
+function createClipPathAnimations(element, targets)
+{
+    for (let child of element.children) {
+        // skip elements which have display="none"
+        if (child.getProperty("display") == "none") {
+            continue;
+        }
+        if (child.tagName == "clipPath" || child.tagName == "mask") {
+            for (let ch of child.children) {
+                // skip elements which have display="none"
+                if (ch.getProperty("display") == "none") {
+                    continue;
+                }
+                if (ch.tagName == "path") {
+                    createAnimations(ch, targets);
+                }
+            }
+        }
+    }
+}
+
 function createAnimations(element, targets)
 {
+    createClipPathAnimations(element, targets);
+
     // create animated properties
 
     let objectAnimators = {};
@@ -588,11 +718,17 @@ function exportAnimatedVD(userSelectedFileUrl)
 
     app.util.renameDuplicateIds();
 
+    let playRange = app.activeDocument.getPlayRange();
+    app.util.trimToTimeRange(playRange.in, playRange.definiteOut);
+
     // detach symbols from use elements
     detachFromSymbols(app.activeDocument, root);
 
     // convert rects, ellipses and text to paths
     convertToPaths(app.activeDocument, root);
+
+    // path trimming
+    convertDashArrayToPathTrim(root);
 
     // create an object tree for a vector drawable
     let vd = createVectorDrawable(root, false);
