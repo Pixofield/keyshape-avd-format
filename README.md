@@ -52,7 +52,7 @@ stroke dash arrays, blending modes, skew, filters and bitmap images.
 
 Animatable properties are: position, rotate, scale, anchor, fill color, fill opacity,
 stroke color, stroke width, stroke opacity, path data. The top-most document object opacity can
-also be animated.
+also be animated. Stroke dash offset animations are mapped to path trimming animations.
 
 Vector drawables and animated vector drawables are exported into a single XML file.
 
@@ -64,10 +64,10 @@ Exporting has few limitations:
  * symbols create duplicate code, which can create large files
  * curved motion paths become straight motion paths
  * skew is not supported because AVDs don't support skewing
- * clip paths only support path shape animations (no transform animations)
- * only one path object under a clipPath is allowed
- * only one clipPath object per object is allowed
- * masks are treated as clip paths
+ * clipping paths only support path shape animations (no transform animations)
+ * clipping paths can only have one path object
+ * only one clipping path per object is allowed
+ * masks are treated as clipping paths
  * stroke dash offset animations are exported as path trimming animations
  * repeating is not supported
 
