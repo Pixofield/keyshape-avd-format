@@ -170,7 +170,7 @@ function parseDom(content)
 function doRecognize(filenameUrl, array, str)
 {
     let hasTag = str.indexOf("animated-vector") > 0 || str.indexOf("vector") > 0;
-    if (filenameUrl.href.endsWith(".xml") && hasTag) {
+    if (filenameUrl.href.toLowerCase().endsWith(".xml") && hasTag) {
         return 100;
     }
     return 0;
