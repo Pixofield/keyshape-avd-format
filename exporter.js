@@ -271,6 +271,7 @@ function copyPathProperties(element, obj)
 function transformElementPath(element, matrix)
 {
     if (element.timeline().hasKeyframes("d")) {
+        element.timeline().simplifyEasings("d");
         let kfs = element.timeline().getKeyframes("d");
         for (let kf of kfs) {
             let oldd = kf.value;
@@ -437,6 +438,7 @@ function convertDashArrayToPathTrim(element)
         element.setProperty("stroke-dasharray", convertDashValue(-doff, pathLen));
         element.setProperty("stroke-dashoffset", convertDashValue((+dasharray[0])-doff, pathLen));
     } else {
+        element.timeline().simplifyEasings("stroke-dashoffset");
         let kfs = element.timeline().getKeyframes("stroke-dashoffset");
         for (let i = kfs.length-1; i >= 0; --i) {
             let kf = kfs[i];
@@ -522,6 +524,13 @@ let animatableSvgToAndroidProperties = {
 };
 animatableSvgToAndroidProperties[RotateStr] = { idsuffix: "_t", prop: "rotation", type: "floatType" };
 
+function clampEasingY(val)
+{
+    if (val < 0) { return 0; }
+    if (val > 1) { return 1; }
+    return val;
+}
+
 function addInterpolator(objectAnimator, easing)
 {
     // linear
@@ -533,6 +542,13 @@ function addInterpolator(objectAnimator, easing)
     let pipo;
     if (easing.startsWith("cubic-bezier(")) {
         let ctrls = easing.match(/cubic-bezier\(([- 0-9.]+),([- 0-9.]+),([- 0-9.]+),([- 0-9.]+)\)/);
+        if (objectAnimator.attributes["android:propertyName"] == "translateX" ||
+                objectAnimator.attributes["android:propertyName"] == "translateY") {
+            // clamp easing for motion paths
+            ctrls[2] = clampEasingY(ctrls[2]);
+            ctrls[4] = clampEasingY(ctrls[4]);
+        }
+
         pipo = {
             tagName: "pathInterpolator",
             attributes: { "android:pathData":
@@ -650,12 +666,13 @@ function createAnimations(element, targets)
             continue;
         }
         let androidProp = animatableSvgToAndroidProperties[svgProp].prop;
+        element.timeline().simplifyEasings(svgProp);
         let kfs = element.timeline().getKeyframes(svgProp);
         if (kfs.length < 2) { // only one keyframe given, it doesn't need to be processed
             continue;
         }
         if (svgProp == "d") {
-            kfs = app.util.makePathDataKeyframesInterpolatable(kfs);
+            kfs = app.activeDocument.makePathDataKeyframesInterpolatable(kfs);
         }
         if (kfs[0].time > 0) {
             // always needs time 0 so that properties are reset to their initial values in repeat
