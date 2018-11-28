@@ -176,9 +176,6 @@ function doRecognize(filenameUrl, array, str)
     return 0;
 }
 
-const RotateStr = !app.activeDocument ? "ks:rotate" :
-    app.activeDocument.documentElement.getProperty("ks:rotate") != null ? "ks:rotate" : "ks:rotation";
-
 // global DOM document
 let ksdoc;
 
@@ -397,7 +394,7 @@ function processRenderable(children)
 
             copyProperty(child, "android:scaleX", elem, "ks:scaleX");
             copyProperty(child, "android:scaleY", elem, "ks:scaleY");
-            copyProperty(child, "android:rotation", elem, RotateStr);
+            copyProperty(child, "android:rotation", elem, "ks:rotation");
             copyProperty(child, "android:pivotX", elem, "ks:anchorX", reverseValue);
             copyProperty(child, "android:pivotY", elem, "ks:anchorY", reverseValue);
 
@@ -714,7 +711,7 @@ function readInterpolatorFromChild(obj)
 const animationPropertyNameToSvgProperty = {
     "translateX":   { svgProp: "ks:positionX", type: "floatType" },
     "translateY":   { svgProp: "ks:positionY", type: "floatType" },
-    "rotation":     { svgProp: RotateStr, type: "floatType", isPivotElementProperty: true },
+    "rotation":     { svgProp: "ks:rotation", type: "floatType", isPivotElementProperty: true },
     "scaleX":       { svgProp: "ks:scaleX", type: "floatType", isPivotElementProperty: true },
     "scaleY":       { svgProp: "ks:scaleY", type: "floatType", isPivotElementProperty: true },
     "fillColor":    { svgProp: "fill", type: "colorType" },
