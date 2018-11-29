@@ -215,6 +215,7 @@ function doImport(filenameUrl)
     }
     processVector(drawable.children[0]);
     processAnimations(rootElement);
+    simplifyAnimations(ksdoc.documentElement);
     mapSkewToDash(ksdoc.documentElement);
 }
 
@@ -787,6 +788,7 @@ function processPropertyValueHolder(obj, elem, beginTime, startOffset, duration,
     }
 
     let svgProp = animationPropertyNameToSvgProperty[propertyName].svgProp;
+    elem.timeline().setSeparated(svgProp, true); // all props are separated
     let easing = interpolatorToCubic(interpolator);
     let easingChild = readInterpolatorFromChild(obj);
     if (easingChild) {
@@ -795,7 +797,7 @@ function processPropertyValueHolder(obj, elem, beginTime, startOffset, duration,
 
     // if the property already has keyframes, then remove repeat and don't allow
     // any further repeats, because adding keyframes over old keyframes doesn't work with repeating
-    if (elem.timeline().getKeyframes(svgProp) != null) {
+    if (elem.timeline().hasKeyframes(svgProp)) {
         elem.timeline().setKeyframeParams(svgProp, { repeatEnd: 0 });
         repeatCount = 0;
     }
@@ -844,9 +846,6 @@ function processKeyframes(obj, elem, beginTime, startOffset, duration, interpola
 function removeKeyframes(elem, svgProp, startTime, endTime)
 {
     let kfs = elem.timeline().getKeyframes(svgProp);
-    if (!kfs) {
-        return;
-    }
     for (let kf of kfs) {
         if (startTime < kf.time && kf.time < endTime) {
             elem.timeline().removeKeyframe(svgProp, kf.time);
@@ -872,4 +871,41 @@ function setRepeat(elem, svgProp, beginTime, startOffset, duration, repeatCount)
     }
     let end = beginTime + startOffset + duration * (repeatCount+1);
     elem.timeline().setKeyframeParams(svgProp, { repeatEnd: end });
+}
+
+// combines separated properties if they can be combined
+function simplifyAnimations(element)
+{
+    // process the element tree recursively
+    for (let child of element.children) {
+        simplifyAnimations(child);
+    }
+    unseparateKeyframes(element, "ks:positionX", "ks:positionY");
+    unseparateKeyframes(element, "ks:scaleX", "ks:scaleY");
+}
+
+function unseparateKeyframes(element, propX, propY)
+{
+    if (!element.timeline().hasKeyframes(propX) || !element.timeline().hasKeyframes(propY)) {
+        return;
+    }
+    // must have the same repeatEnd, keyframe count, times and easings
+    let paramsX = element.timeline().getKeyframeParams(propX);
+    let paramsY = element.timeline().getKeyframeParams(propY);
+    if (paramsX.repeatEnd != paramsY.repeatEnd) {
+        return;
+    }
+    let kfsX = element.timeline().getKeyframes(propX);
+    let kfsY = element.timeline().getKeyframes(propY);
+    if (kfsX.length != kfsY.length) {
+        return;
+    }
+    for (let i = 0; i < kfsX.length; ++i) {
+        let kfx = kfsX[i];
+        let kfy = kfsY[i];
+        if (kfx.time != kfy.time || kfx.easing != kfy.easing) {
+            return;
+        }
+    }
+    element.timeline().setSeparated(propX, false);
 }

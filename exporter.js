@@ -448,6 +448,17 @@ function convertDashArrayToPathTrim(element)
     }
 }
 
+function separateMotionPaths(element)
+{
+    // process the element tree recursively
+    for (let child of element.children) {
+        separateMotionPaths(child);
+    }
+    if (!element.timeline().isSeparated("ks:positionX")) {
+        element.timeline().setSeparated("ks:positionX", true);
+    }
+}
+
 function createVectorDrawable(root, withNamespace)
 {
     let objs = convertElement(root);
@@ -520,13 +531,6 @@ let animatableSvgToAndroidProperties = {
     "opacity":          { idsuffix: "_o", prop: "alpha", type: "floatType" }
 };
 
-function clampEasingY(val)
-{
-    if (val < 0) { return 0; }
-    if (val > 1) { return 1; }
-    return val;
-}
-
 function addInterpolator(objectAnimator, easing)
 {
     // linear
@@ -538,13 +542,6 @@ function addInterpolator(objectAnimator, easing)
     let pipo;
     if (easing.startsWith("cubic-bezier(")) {
         let ctrls = easing.match(/cubic-bezier\(([- 0-9.]+),([- 0-9.]+),([- 0-9.]+),([- 0-9.]+)\)/);
-        if (objectAnimator.attributes["android:propertyName"] == "translateX" ||
-                objectAnimator.attributes["android:propertyName"] == "translateY") {
-            // clamp easing for motion paths
-            ctrls[2] = clampEasingY(ctrls[2]);
-            ctrls[4] = clampEasingY(ctrls[4]);
-        }
-
         pipo = {
             tagName: "pathInterpolator",
             attributes: { "android:pathData":
@@ -742,6 +739,9 @@ function exportAnimatedVD(userSelectedFileUrl)
 
     // path trimming
     convertDashArrayToPathTrim(root);
+
+    // separate motion paths to x and y properties
+    separateMotionPaths(root);
 
     // create an object tree for a vector drawable
     let vd = createVectorDrawable(root, false);

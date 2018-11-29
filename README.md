@@ -62,7 +62,6 @@ Exporting has few limitations:
    center and end of the gradient
  * text gets converted to paths
  * symbols create duplicate code, which can create large files
- * curved motion paths become straight motion paths
  * skew is not supported because AVDs don't support skewing
  * clipping paths only support path shape animations (no transform animations)
  * clipping paths can only have one path object
