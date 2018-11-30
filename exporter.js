@@ -177,6 +177,12 @@ function rgbaToAndroidColor(obj)
     return "#" + toHex(obj.alpha) + toHex(obj.red) + toHex(obj.green) + toHex(obj.blue);
 }
 
+function roundDec(val, decimals)
+{
+    let f = Math.pow(10, decimals);
+    return Math.round(val * f) / f;
+}
+
 function copyColor(element, svgProp, obj, targetAttr)
 {
     let value = element.getProperty(svgProp);
@@ -210,26 +216,37 @@ function copyColor(element, svgProp, obj, targetAttr)
                 "android:gradientRadius": color.r
             };
         }
-        let gr = {
+        let grad = {
             tagName: "gradient",
             attributes: gattrs
         };
-        gr.attributes["android:tileMode"] = spreadToTileMode[color.spreadMethod];
-        // first stop
-        gr.attributes["android:startColor"] = rgbaToAndroidColor(color.stops[0]);
-        // optional mid stop
-        if (color.stops.length > 2) {
-            let mid = Math.floor(color.stops.length/2);
-            gr.attributes["android:centerColor"] = rgbaToAndroidColor(color.stops[mid]);
+        grad.attributes["android:tileMode"] = spreadToTileMode[color.spreadMethod];
+        // use simple color attributes or gradient color items
+        if ((color.stops.length == 2 && color.stops[0].offset == 0 && color.stops[1].offset == 1) ||
+                (color.stops.length == 3 && color.stops[0].offset == 0 &&
+                 color.stops[1].offset == 0.5 && color.stops[2].offset == 1)) {
+            grad.attributes["android:startColor"] = rgbaToAndroidColor(color.stops[0]);
+            if (color.stops.length > 2) {
+                grad.attributes["android:centerColor"] = rgbaToAndroidColor(color.stops[1]);
+            }
+            grad.attributes["android:endColor"] =
+                    rgbaToAndroidColor(color.stops[color.stops.length-1]);
+        } else { // gradient color items
+            let items = [];
+            for (let stop of color.stops) {
+                items.push({ tagName: "item", attributes: {
+                    "android:color": rgbaToAndroidColor(stop),
+                    "android:offset": roundDec(stop.offset, 3)
+                    }
+                });
+            }
+            grad.children = items;
         }
-        // last stop
-        gr.attributes["android:endColor"] =
-                rgbaToAndroidColor(color.stops[color.stops.length-1]);
 
         let aaptattr = {
             tagName: "aapt:attr",
             attributes: { "name": targetAttr },
-            children: [ gr ]
+            children: [ grad ]
         };
         if (!obj.children) {
             obj.children = [];

@@ -484,12 +484,6 @@ const svgSpreadMap = {
     "repeat": "repeat"
 };
 
-function appendStop(array, offset, androidColor)
-{
-    let color = androidColorToSvgColor(androidColor, false);
-    array.push(color+" "+offset);
-}
-
 function copyGradient(aaptObj, elem, svgProp)
 {
     if (!aaptObj.children) {
@@ -518,19 +512,48 @@ function copyGradient(aaptObj, elem, svgProp)
             }
             let tileMode = child.attributes["android:tileMode"] || "clamp";
             let svgSpread = svgSpreadMap[tileMode];
-            let startColor = child.attributes["android:startColor"] || "#00000000";
-            let centerColor = child.attributes["android:centerColor"];
-            let endColor = child.attributes["android:endColor"] || "#00000000";
-            let stops = [];
-            appendStop(stops, "0%", startColor);
-            if (centerColor) {
-                appendStop(stops, "50%", centerColor);
-            }
-            appendStop(stops, "100%", endColor);
+            let stops = readStops(child);
             color += svgSpread + " matrix(1 0 0 1 0 0), " + stops.join(", ")+")";
             elem.setProperty(svgProp, color);
         }
     }
+}
+
+function appendStopToArray(array, offset, androidColor)
+{
+    let color = androidColorToSvgColor(androidColor, false);
+    array.push(color+" "+offset);
+}
+
+function clamp(val, min, max)
+{
+    return val < min ? min : val < max ? val : max;
+}
+
+function readStops(gradientObj)
+{
+    let stops = [];
+    for (let child of gradientObj.children) {
+        if (child.tagName == "item") {
+            let color = child.attributes["android:color"] || "#00000000";
+            let offset = child.attributes["android:offset"] || 0;
+            offset = clamp(offset, 0, 1);
+            appendStopToArray(stops, (offset*100)+"%", color);
+        }
+    }
+    if (stops.length > 1) {
+        return stops;
+    }
+    stops = [];
+    let startColor = gradientObj.attributes["android:startColor"] || "#00000000";
+    let centerColor = gradientObj.attributes["android:centerColor"];
+    let endColor = gradientObj.attributes["android:endColor"] || "#00000000";
+    appendStopToArray(stops, "0%", startColor);
+    if (centerColor) {
+        appendStopToArray(stops, "50%", centerColor);
+    }
+    appendStopToArray(stops, "100%", endColor);
+    return stops;
 }
 
 function copyColor(obj, androidProp, elem, svgProp)
