@@ -462,10 +462,14 @@ function androidColorToSvgColor(color, ignoreAlpha)
     if (!color.startsWith("#")) {
         return "#000000";
     }
-    if (color.length == 7) {
+    // #rgb or #rrggbb
+    if (color.length == 4 || color.length == 7) {
         return color;
     }
     if (color.length > 7 && ignoreAlpha) { // if it is "#aarrggbb", then remove alpha value
+        if (color == "#00000000") {
+            return "none";
+        }
         return "#"+color.substring(3);
     }
     // convert to rgba()
