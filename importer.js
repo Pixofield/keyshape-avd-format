@@ -466,12 +466,6 @@ function androidColorToSvgColor(color, ignoreAlpha)
     if (color.length == 4 || color.length == 7) {
         return color;
     }
-    if (color.length > 7 && ignoreAlpha) { // if it is "#aarrggbb", then remove alpha value
-        if (color == "#00000000") {
-            return "none";
-        }
-        return "#"+color.substring(3);
-    }
     // convert to rgba()
     let val = parseInt(color.substring(1), 16);
     let a = (val >> 24) & 255;

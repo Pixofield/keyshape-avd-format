@@ -186,7 +186,7 @@ function roundDec(val, decimals)
 function copyColor(element, svgProp, obj, targetAttr)
 {
     let value = element.getProperty(svgProp);
-    let color = app.util.parseColor(value);
+    let color = app.activeDocument.parseColor(value);
     if (color.type == "color") {
         obj.attributes[targetAttr] = rgbaToAndroidColor(color);
 
@@ -594,8 +594,12 @@ function createObjectAnimators(element, svgProp, androidProp, kfs, params)
         // check colors are solids and nothing else
         let fromkf = kfs[i];
         let tokf = kfs[i+1];
+        let fromkfvalue = fromkf.value;
+        let tokfvalue = tokf.value;
         if (svgProp == "fill" || svgProp == "stroke") {
-            if (!fromkf.value.startsWith("#") || !tokf.value.startsWith("#")) {
+            var fromColor = app.activeDocument.parseColor(fromkfvalue);
+            var toColor = app.activeDocument.parseColor(tokfvalue);
+            if (fromColor.type != "color" || toColor.type != "color") {
                 let id = element.getProperty("id");
                 if (id) {
                     id = "'" + id + "'";
@@ -604,6 +608,8 @@ function createObjectAnimators(element, svgProp, androidProp, kfs, params)
                 }
                 throw "Only solid colors can be animated, element: "+id+" property: '"+svgProp+"'";
             }
+            fromkfvalue = rgbaToAndroidColor(fromColor);
+            tokfvalue = rgbaToAndroidColor(toColor);
         }
         let dur = tokf.time - fromkf.time;
         // path animation may contain zero duration animations if subpath count changes
@@ -618,8 +624,8 @@ function createObjectAnimators(element, svgProp, androidProp, kfs, params)
         let oattrs = {
             "android:propertyName": androidProp,
             "android:duration": dur,
-            "android:valueFrom": fromkf.value,
-            "android:valueTo": tokf.value
+            "android:valueFrom": fromkfvalue,
+            "android:valueTo": tokfvalue
         };
         if (fromkf.time > 0) {
             oattrs["android:startOffset"] = fromkf.time;
