@@ -26,7 +26,6 @@ Most vector drawable features are imported successfully, but there are few limit
 
  * pivotX and pivotY animations are not supported
  * easing interpolators (such as linear_out_slow_in) are approximated with cubic beziers
- * the alpha component in #AARRGGBB colors is ignored except in gradients
  * attribute references, such as "@string", are not supported
  * style attribute references, such as "?android:textColorSecondary", are not supported
  * the elements and attributes must use the `android:` and `aapt:` prefixes, other prefixes
