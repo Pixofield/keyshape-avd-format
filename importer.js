@@ -499,14 +499,14 @@ function copyGradient(aaptObj, elem, svgProp)
                 if (!r) {
                     throw "android:gradientRadius missing";
                 }
-                color = "-ks-radial-gradient(userSpaceOnUse "+r+" "+cx+" "+cy+" "+cx+" "+cy+" ";
+                color = "-ks-radial-gradient("+r+" "+cx+" "+cy+" "+cx+" "+cy+" ";
 
             } else { // default linear
                 let sx = child.attributes["android:startX"] || 0;
                 let sy = child.attributes["android:startY"] || 0;
                 let ex = child.attributes["android:endX"] || 0;
                 let ey = child.attributes["android:endY"] || 0;
-                color = "-ks-linear-gradient(userSpaceOnUse "+sx+" "+sy+" "+ex+" "+ey+" ";
+                color = "-ks-linear-gradient("+sx+" "+sy+" "+ex+" "+ey+" ";
             }
             let tileMode = child.attributes["android:tileMode"] || "clamp";
             let svgSpread = svgSpreadMap[tileMode];
