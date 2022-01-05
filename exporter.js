@@ -200,19 +200,23 @@ function copyColor(element, svgProp, obj, targetAttr)
             return;
         }
         let gattrs;
+        let gt = color.gradientTransform;
         if (color.type == "linear-gradient") {
+            let p1 = new DOMPoint(color.x1, color.y1).matrixTransform(gt);
+            let p2 = new DOMPoint(color.x2, color.y2).matrixTransform(gt);
             gattrs = {
                 "android:type": "linear",
-                "android:startX": color.x1,
-                "android:startY": color.y1,
-                "android:endX": color.x2,
-                "android:endY": color.y2
+                "android:startX": p1.x,
+                "android:startY": p1.y,
+                "android:endX": p2.x,
+                "android:endY": p2.y
             };
         } else { // radial-gradient
+            let c = new DOMPoint(color.fx, color.fy).matrixTransform(gt);
             gattrs = {
                 "android:type": "radial",
-                "android:centerX": color.cx,
-                "android:centerY": color.cy,
+                "android:centerX": c.x,
+                "android:centerY": c.y,
                 "android:gradientRadius": color.r
             };
         }
