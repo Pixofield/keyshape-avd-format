@@ -185,6 +185,13 @@ let elementStack = [];
 // a map from element id to pivot element id, if the element has a pivot element
 let pivotElementIds = {};
 
+let globalAlertMessages = new Set();
+
+function addAlertMessage(str)
+{
+    globalAlertMessages.add(str);
+}
+
 // imports the given file
 function doImport(filenameUrl)
 {
@@ -197,6 +204,12 @@ function doImport(filenameUrl)
     if (rootElement.tagName === "vector") {
         processVector(rootElement);
         mapSkewToDash(ksdoc.documentElement);
+        if (globalAlertMessages.size > 0) {
+            app.alertDeferred("Unsupported AVD features",
+                              "These AVD features couldn't be imported:\n\n" +
+                              Array.from(globalAlertMessages).join("\n") + "\n\n" +
+                              "The animation may display incorrectly.");
+        }
         return;
     }
 
@@ -217,6 +230,13 @@ function doImport(filenameUrl)
     processAnimations(rootElement);
     simplifyAnimations(ksdoc.documentElement);
     mapSkewToDash(ksdoc.documentElement);
+
+    if (globalAlertMessages.size > 0) {
+        app.alertDeferred("Unsupported AVD features",
+                          "These AVD features couldn't be imported:\n\n" +
+                          Array.from(globalAlertMessages).join("\n") + "\n\n" +
+                          "The animation may display incorrectly.");
+    }
 }
 
 function processVector(vector)
@@ -234,6 +254,10 @@ function processVector(vector)
     }
     copyProperty(vector, "android:alpha", ksdoc.documentElement, "opacity");
     copyProperty(vector, "android:name", ksdoc.documentElement, "id");
+
+    if (vector.attributes['tint']) {
+        addAlertMessage("Document tinting");
+    }
 
     // process children
     elementStack = [ ksdoc.documentElement ];
@@ -277,7 +301,7 @@ function mapSkewToDash(element)
     if (element.timeline().hasKeyframes("ks:skewX")) {
         let value = element.timeline().getKeyframes("ks:skewX")[0].value;
         for (let kf of element.timeline().getKeyframes("ks:skewX")) {
-            if (kf.value != value) {
+            if (kf.value !== value) {
                 value = Infinity;
                 break;
             }
@@ -285,6 +309,13 @@ function mapSkewToDash(element)
         if (value !== Infinity) {
             removeAllKeyframes(element, "ks:skewX");
         }
+    }
+
+    let animCount = element.timeline().hasKeyframes("ks:skewX") ? 1 : 0;
+    animCount += element.timeline().hasKeyframes("stroke-dasharray") ? 1 : 0;
+    animCount += element.timeline().hasKeyframes("stroke-dashoffset") ? 1 : 0;
+    if (animCount > 1) {
+        addAlertMessage("Combined trim start, end or offset animations");
     }
 
     // convert skew and stroke-dasharray animations to dash offset animation
@@ -453,6 +484,7 @@ let generatedColors = 0x000000;
 function androidColorToSvgColor(color, ignoreAlpha)
 {
     if (color.startsWith("@") || color.startsWith("?")) {
+        addAlertMessage("Attribute references");
         generatedColors += 0x404040;
         if (generatedColors > 0xffffff) {
             generatedColors = 0x404040;
@@ -490,14 +522,16 @@ function copyGradient(aaptObj, elem, svgProp)
     for (let child of aaptObj.children) {
         if (child.tagName === "gradient") {
             let type = child.attributes["android:type"];
-
+            if (type === "sweep") {
+                addAlertMessage("Sweep gradients");
+            }
             let color;
-            if (type === "radial") {
+            if (type === "radial" || type === "sweep") { // sweeps are imported as radial gradients
                 let cx = child.attributes["android:centerX"] ?? 0;
                 let cy = child.attributes["android:centerY"] ?? 0;
-                let r = child.attributes["android:gradientRadius"];
-                if (!r) {
-                    throw "android:gradientRadius missing";
+                let r = child.attributes["android:gradientRadius"] ?? 1;
+                if (type === "sweep") {
+                    r = 10;
                 }
                 color = "-ks-radial-gradient("+r+" "+cx+" "+cy+" "+cx+" "+cy+" ";
 
@@ -585,11 +619,13 @@ function copyProperty(obj, androidProp, elem, svgProp, processor)
     }
     let val = obj.attributes[androidProp];
     if (svgProp === "d" && val.startsWith("@")) {
+        addAlertMessage("Attribute references");
         val = "M7,5C7,5,4,7,1,7C-2,7,-6,5.5,-6,1C-6,-3.5,-2.5,-6,1,-6C4.5,-6,6,-3.5,6,-1" +
               "C6,1.5,4.5,4,3,4C1.5,4,3.7,-3.5,3.7,-3.5C3.7,-3.5,2,4,-0.6,4C-2.5,4,-3,2.41979,-3,0.5" +
               "C-3,-1.5,-1.5,-3.4,0.5,-3.4C2.5,-3.4,2.7,-1.5,2.7,0";
     }
     if (val.startsWith("@") || val.startsWith("?")) { // skip
+        addAlertMessage("Attribute references");
         return;
     }
     if (processor) {
@@ -610,14 +646,14 @@ function processAnimations(rootObj)
             if (!elem || child.children.length === 0) {
                 continue;
             }
-            // check aaptattr exists
+            // check aapt:attr exists
             let aaptattr = child.children[0];
             if (aaptattr.tagName !== "aapt:attr" ||
                     aaptattr.attributes["name"] !== "android:animation") {
                 continue;
             }
             if (aaptattr.children.length !== 1) {
-                throw "<aapt:aatr> must have exactly one child element";
+                throw "<aapt:attr> must have exactly one child element";
             }
             processAnimatorOrSet(aaptattr.children[0], elem, 0);
         }
@@ -641,8 +677,11 @@ function processAnimatorOrSet(animOrSetObj, elem, beginTime)
         }
         return isSequence ? beginTime : beginTime + maxDur;
 
-    } else { // try to process it as objectAnimator
+    } else if (animOrSetObj.tagName === "objectAnimator") {
         return processObjectAnimator(animOrSetObj, elem, beginTime);
+
+    } else {
+        return 0;
     }
 }
 
@@ -758,16 +797,13 @@ function convertValue(svgProp, value)
 
 function processObjectAnimator(animator, elem, beginTime)
 {
-    if (animator.tagName !== "objectAnimator") {
-        return 0;
-    }
     let startOffset = parseFloat(animator.attributes["android:startOffset"] ?? 0);
     let duration = parseFloat(animator.attributes["android:duration"] ?? 300);
+    if (duration < 0) {
+        return 0;
+    }
     if (startOffset < 0) {
         startOffset = 0;
-    }
-    if (duration < 0) {
-        throw "Duration cannot be negative";
     }
     if (duration === 0) { // no real animation, just return
         return startOffset;
@@ -796,6 +832,9 @@ function processPropertyValueHolder(obj, elem, beginTime, startOffset, duration,
 {
     let propertyName = obj.attributes["android:propertyName"];
     let valueType_unused = obj.attributes["android:valueType"];
+    if (propertyName === "pivotX" || propertyName === "pivotY") {
+        addAlertMessage("Pivot point animations");
+    }
     if (!propertyName || !animationPropertyNameToSvgProperty[propertyName]) {
         return;
     }
@@ -823,7 +862,9 @@ function processPropertyValueHolder(obj, elem, beginTime, startOffset, duration,
         repeatCount = 0;
     }
 
-    removeKeyframes(elem, svgProp, beginTime+startOffset, beginTime+startOffset+duration);
+    if (removeKeyframes(elem, svgProp, beginTime+startOffset, beginTime+startOffset+duration)) {
+        addAlertMessage("Overlapping animations");
+    }
 
     if (obj.tagName === "propertyValuesHolder") {
         if (processKeyframes(obj, elem, beginTime, startOffset, duration, interpolator,
@@ -867,11 +908,14 @@ function processKeyframes(obj, elem, beginTime, startOffset, duration, interpola
 function removeKeyframes(elem, svgProp, startTime, endTime)
 {
     let kfs = elem.timeline().getKeyframes(svgProp);
+    let kfremoved = false;
     for (let kf of kfs) {
         if (startTime < kf.time && kf.time < endTime) {
             elem.timeline().removeKeyframe(svgProp, kf.time);
+            kfremoved = true;
         }
     }
+    return kfremoved;
 }
 
 function setRepeat(elem, svgProp, beginTime, startOffset, duration, repeatCount)
@@ -883,15 +927,12 @@ function setRepeat(elem, svgProp, beginTime, startOffset, duration, repeatCount)
         elem.timeline().setKeyframeParams(svgProp, { repeatEnd: Infinity });
         return;
     }
-    repeatCount = parseFloat(repeatCount);
-    if (repeatCount !== Math.floor(repeatCount)) {
-        throw "Fractions are not allowed for repeatCount: "+repeatCount;
-    }
+    repeatCount = Math.floor(parseFloat(repeatCount));
     if (repeatCount < 1) { // this includes negative values (they should really disable animation)
         return;
     }
-    let end = beginTime + startOffset + duration * (repeatCount+1);
-    elem.timeline().setKeyframeParams(svgProp, { repeatEnd: end });
+    let rend = beginTime + startOffset + duration * (repeatCount+1);
+    elem.timeline().setKeyframeParams(svgProp, { repeatEnd: rend });
 }
 
 // combines separated properties if they can be combined

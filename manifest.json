@@ -3,7 +3,7 @@
     "name": "AVD Format",
     "version": "1.5.0",
     "keyshape_manifest_version": 1,
-    "keyshape_min_version" : "1.12",
+    "keyshape_min_version" : "1.14",
     "homepage": "https://github.com/Pixofield/keyshape-avd-format",
     "author": "Pixofield Ltd",
     "description": "Import and export Animated Vector Drawables and Vector Drawables.",
