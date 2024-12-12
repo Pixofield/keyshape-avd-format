@@ -442,6 +442,8 @@ function convertDashArrayToPathTrim(element)
     }
     // converts values, uses dasharray as trimPathStart and dashoffset as trimPathEnd
     // the AVD exporter then maps dasharray and dashoffset to the Android properties
+
+    // no dasharray?
     let da = element.getProperty("stroke-dasharray").trim();
     if (da === "" || da === "none") {
         removeAllKeyframes(element, "stroke-dashoffset");
@@ -452,13 +454,17 @@ function convertDashArrayToPathTrim(element)
     }
     let dasharray = parseDashArray(da);
     let pathLen = new KSPathData(element.getProperty("d")).getTotalLength();
+
     if (!element.timeline().hasKeyframes("stroke-dashoffset")) {
         let doff = element.getProperty("stroke-dashoffset");
+        removeAllKeyframes(element, "stroke-dasharray");
         element.setProperty("stroke-dasharray", convertDashValue(-doff, pathLen));
         element.setProperty("stroke-dashoffset", convertDashValue((+dasharray[0])-doff, pathLen));
     } else {
         element.timeline().simplifyEasings("stroke-dashoffset");
         let kfs = element.timeline().getKeyframes("stroke-dashoffset");
+        removeAllKeyframes(element, "stroke-dashoffset");
+        removeAllKeyframes(element, "stroke-dasharray");
         for (let i = kfs.length-1; i >= 0; --i) {
             let kf = kfs[i];
             let doff = kf.value;
@@ -596,11 +602,11 @@ function createObjectAnimators(element, svgProp, androidProp, kfs, params)
 {
     let animators = [];
     for (let i = 0; i < kfs.length-1; i++) {
-        // check colors are solids and nothing else
         let fromkf = kfs[i];
         let tokf = kfs[i+1];
         let fromkfvalue = fromkf.value;
         let tokfvalue = tokf.value;
+        // check colors are solids and nothing else
         if (svgProp === "fill" || svgProp === "stroke") {
             var fromColor = app.activeDocument.parseColor(fromkfvalue);
             var toColor = app.activeDocument.parseColor(tokfvalue);
