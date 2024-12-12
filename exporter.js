@@ -52,7 +52,7 @@ class XmlWriter {
 
     fromObjects(objs)
     {
-        if (!objs.children || objs.children.length == 0) {
+        if (!objs.children || objs.children.length === 0) {
             this.startTag(objs.tagName, objs.attributes, true);
         } else {
             this.startTag(objs.tagName, objs.attributes, false);
@@ -74,7 +74,7 @@ function hasAvdAnimatableKeyframes(element)
 {
     for (let svgProp of element.timeline().getKeyframeNames()) {
         // only root element can animate opacity
-        if (svgProp == "opacity" && element != app.activeDocument.documentElement) {
+        if (svgProp === "opacity" && element !== app.activeDocument.documentElement) {
             return false;
         }
         if (animatableSvgToAndroidProperties[svgProp]) {
@@ -91,7 +91,7 @@ function copyProperty(element, svgProp, obj, targetAttr, avdDefaultValue, conver
     if (converterCallback) {
         value = converterCallback(value, converterParam);
     }
-    if (value != avdDefaultValue && value != null) {
+    if (value !== avdDefaultValue && value !== null) {
         obj.attributes[targetAttr] = value;
     }
 }
@@ -139,7 +139,7 @@ function copyTransformProperties(obj, element)
     // work correctly. Children must be added under this extra group.
     let ax = element.getProperty("ks:anchorX");
     let ay = element.getProperty("ks:anchorY");
-    if (ax != 0 || ay != 0 || element.timeline().hasKeyframes("ks:anchorX") ||
+    if (ax !== 0 || ay !== 0 || element.timeline().hasKeyframes("ks:anchorX") ||
             element.timeline().hasKeyframes("ks:anchorY")) {
         let aobj = {};
         aobj.attributes = {};
@@ -171,7 +171,7 @@ function toHex(colorComponent)
 // converts obj.red/green/blue/alpha to #aarrggbb or #rrggbb
 function rgbaToAndroidColor(obj)
 {
-    if ((typeof obj.alpha == "undefined") || obj.alpha == 1) {
+    if ((typeof obj.alpha === "undefined") || obj.alpha === 1) {
         return "#" + toHex(obj.red) + toHex(obj.green) + toHex(obj.blue);
     }
     return "#" + toHex(obj.alpha) + toHex(obj.red) + toHex(obj.green) + toHex(obj.blue);
@@ -187,21 +187,21 @@ function copyColor(element, svgProp, obj, targetAttr)
 {
     let value = element.getProperty(svgProp);
     let color = app.activeDocument.parseColor(value);
-    if (color.type == "color") {
+    if (color.type === "color") {
         obj.attributes[targetAttr] = rgbaToAndroidColor(color);
 
-    } else if (color.type == "linear-gradient" || color.type == "radial-gradient") {
+    } else if (color.type === "linear-gradient" || color.type === "radial-gradient") {
         // gradient requires API 24+
-        if (color.stops.length == 0) { // no stops
+        if (color.stops.length === 0) { // no stops
             return;
         }
-        if (color.stops.length == 1) { // one stop is a solid color
+        if (color.stops.length === 1) { // one stop is a solid color
             obj.attributes[targetAttr] = rgbaToAndroidColor(color.stops[0]);
             return;
         }
         let gattrs;
         let gt = color.gradientTransform;
-        if (color.type == "linear-gradient") {
+        if (color.type === "linear-gradient") {
             let p1 = new DOMPoint(color.x1, color.y1).matrixTransform(gt);
             let p2 = new DOMPoint(color.x2, color.y2).matrixTransform(gt);
             gattrs = {
@@ -226,9 +226,10 @@ function copyColor(element, svgProp, obj, targetAttr)
         };
         grad.attributes["android:tileMode"] = spreadToTileMode[color.spreadMethod];
         // use simple color attributes or gradient color items
-        if ((color.stops.length == 2 && color.stops[0].offset == 0 && color.stops[1].offset == 1) ||
-                (color.stops.length == 3 && color.stops[0].offset == 0 &&
-                 color.stops[1].offset == 0.5 && color.stops[2].offset == 1)) {
+        if ((color.stops.length === 2 && color.stops[0].offset === 0 &&
+             color.stops[1].offset === 1) ||
+            (color.stops.length === 3 && color.stops[0].offset === 0 &&
+             color.stops[1].offset === 0.5 && color.stops[2].offset === 1)) {
             grad.attributes["android:startColor"] = rgbaToAndroidColor(color.stops[0]);
             if (color.stops.length > 2) {
                 grad.attributes["android:centerColor"] = rgbaToAndroidColor(color.stops[1]);
@@ -262,7 +263,7 @@ function copyColor(element, svgProp, obj, targetAttr)
 
 function convertFillRule(value)
 {
-    if (value == "evenodd") {
+    if (value === "evenodd") {
         return "evenOdd";
     }
     return "nonZero";
@@ -309,21 +310,21 @@ function transformElementPath(element, matrix)
 function processClipPaths(element, gobj)
 {
     for (let child of element.children) {
-        if (child.tagName != "clipPath" && child.tagName != "mask") {
+        if (child.tagName !== "clipPath" && child.tagName !== "mask") {
             continue;
         }
         // skip clipPaths and masks which have display="none"
-        if (child.getProperty("display") == "none") {
+        if (child.getProperty("display") === "none") {
             continue;
         }
         // objects under mask or clipPath
         for (let ch of child.children) {
             // skip elements which have display="none"
-            if (ch.getProperty("display") == "none") {
+            if (ch.getProperty("display") === "none") {
                 continue;
             }
             // a path under a clipPath or mask element becomes a clip-path android element
-            if (ch.tagName == "path") {
+            if (ch.tagName === "path") {
                 transformElementPath(ch, ch.timeline().getTransform(0));
                 let obj = {};
                 obj.tagName = "clip-path";
@@ -348,7 +349,7 @@ function convertElement(element)
     let gobj = obj;
     obj.attributes = {};
 
-    if (tagName == "path") {
+    if (tagName === "path") {
         numberOfPaths++;
         let objpath = {};
         objpath.tagName = "path";
@@ -362,17 +363,17 @@ function convertElement(element)
         return obj;
     }
 
-    if (tagName == "g" || tagName == "svg") {
+    if (tagName === "g" || tagName === "svg") {
         obj.tagName = "group";
         gobj = copyTransformProperties(obj, element);
         gobj.children = [];
         processClipPaths(element, gobj);
         for (let child of element.children) {
             // skip elements which have display="none"
-            if (child.getProperty("display") == "none") {
+            if (child.getProperty("display") === "none") {
                 continue;
             }
-            if (child.tagName == "g" || child.tagName == "path") {
+            if (child.tagName === "g" || child.tagName === "path") {
                 gobj.children.push(convertElement(child));
             }
         }
@@ -436,13 +437,13 @@ function convertDashArrayToPathTrim(element)
     for (let child of element.children) {
         convertDashArrayToPathTrim(child);
     }
-    if (element.tagName != "path") {
+    if (element.tagName !== "path") {
         return;
     }
     // converts values, uses dasharray as trimPathStart and dashoffset as trimPathEnd
     // the AVD exporter then maps dasharray and dashoffset to the Android properties
     let da = element.getProperty("stroke-dasharray").trim();
-    if (da == "" || da == "none") {
+    if (da === "" || da === "none") {
         removeAllKeyframes(element, "stroke-dashoffset");
         removeAllKeyframes(element, "stroke-dasharray");
         element.setProperty("stroke-dasharray", "0"); // default trim start
@@ -555,7 +556,7 @@ let animatableSvgToAndroidProperties = {
 function addInterpolator(objectAnimator, easing)
 {
     // linear
-    if (!easing || easing == "linear") {
+    if (!easing || easing === "linear") {
         objectAnimator.attributes["android:interpolator"] = "@android:interpolator/linear";
         return;
     }
@@ -600,10 +601,10 @@ function createObjectAnimators(element, svgProp, androidProp, kfs, params)
         let tokf = kfs[i+1];
         let fromkfvalue = fromkf.value;
         let tokfvalue = tokf.value;
-        if (svgProp == "fill" || svgProp == "stroke") {
+        if (svgProp === "fill" || svgProp === "stroke") {
             var fromColor = app.activeDocument.parseColor(fromkfvalue);
             var toColor = app.activeDocument.parseColor(tokfvalue);
-            if (fromColor.type != "color" || toColor.type != "color") {
+            if (fromColor.type !== "color" || toColor.type !== "color") {
                 let id = element.getProperty("id");
                 if (id) {
                     id = "'" + id + "'";
@@ -652,16 +653,16 @@ function createClipPathAnimations(element, targets)
 {
     for (let child of element.children) {
         // skip elements which have display="none"
-        if (child.getProperty("display") == "none") {
+        if (child.getProperty("display") === "none") {
             continue;
         }
-        if (child.tagName == "clipPath" || child.tagName == "mask") {
+        if (child.tagName === "clipPath" || child.tagName === "mask") {
             for (let ch of child.children) {
                 // skip elements which have display="none"
-                if (ch.getProperty("display") == "none") {
+                if (ch.getProperty("display") === "none") {
                     continue;
                 }
-                if (ch.tagName == "path") {
+                if (ch.tagName === "path") {
                     createAnimations(ch, targets);
                 }
             }
@@ -682,7 +683,7 @@ function createAnimations(element, targets)
             continue;
         }
         // only root element can animate opacity
-        if (svgProp == "opacity" && element != app.activeDocument.documentElement) {
+        if (svgProp === "opacity" && element !== app.activeDocument.documentElement) {
             continue;
         }
         let androidProp = animatableSvgToAndroidProperties[svgProp].prop;
@@ -691,7 +692,7 @@ function createAnimations(element, targets)
         if (kfs.length < 2) { // only one keyframe given, it doesn't need to be processed
             continue;
         }
-        if (svgProp == "d") {
+        if (svgProp === "d") {
             kfs = app.activeDocument.makePathDataKeyframesInterpolatable(kfs);
         }
         if (kfs[0].time > 0) {
@@ -735,13 +736,13 @@ function createAnimations(element, targets)
     }
 
     // recursively process children
-    if (element.tagName == "g" || element.tagName == "svg") {
+    if (element.tagName === "g" || element.tagName === "svg") {
         for (let child of element.children) {
             // skip elements which have display="none"
-            if (child.getProperty("display") == "none") {
+            if (child.getProperty("display") === "none") {
                 continue;
             }
-            if (child.tagName == "g" || child.tagName == "path") {
+            if (child.tagName === "g" || child.tagName === "path") {
                 createAnimations(child, targets);
             }
         }

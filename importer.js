@@ -53,7 +53,7 @@ class SaxReader
 
     hasChars(chrs)
     {
-        return this._xmlstr.substr(this._pos, chrs.length) == chrs;
+        return this._xmlstr.substr(this._pos, chrs.length) === chrs;
     }
 
     skipWhiteSpace()
@@ -65,7 +65,7 @@ class SaxReader
 
     skipTextContent()
     {
-        while (this.peek() != '<' && this._pos < this._xmlstr.length) {
+        while (this.peek() !== '<' && this._pos < this._xmlstr.length) {
             this._pos += 1;
         }
     }
@@ -98,11 +98,11 @@ class SaxReader
                 // get attributes
                 let attrs = {};
                 this.skipWhiteSpace();
-                while (this.peek() != '/' && this.peek() != '>') {
+                while (this.peek() !== '/' && this.peek() !== '>') {
                     let attrName = this.readUntil('=').trim();
                     this.readn(1);
                     this.skipWhiteSpace();
-                    if (this.peek() != '"') {
+                    if (this.peek() !== '"') {
                         throw "Bad attribute: "+tag;
                     }
                     this.readn(1);
@@ -112,11 +112,11 @@ class SaxReader
                     this.skipWhiteSpace();
                 }
                 if (callback.startElement) callback.startElement(tag, attrs);
-                if (this.peek() == '/') {
+                if (this.peek() === '/') {
                     this.readn(1);
                     if (callback.endElement) callback.endElement(tag);
                 }
-                if (this.peek() != '>') {
+                if (this.peek() !== '>') {
                     throw "Bad element: "+tag;
                 }
                 this.readn(1);
@@ -194,23 +194,23 @@ function doImport(filenameUrl)
     ksdoc = app.activeDocument;
 
     // vector: static graphics
-    if (rootElement.tagName == "vector") {
+    if (rootElement.tagName === "vector") {
         processVector(rootElement);
         mapSkewToDash(ksdoc.documentElement);
         return;
     }
 
     // animated vector
-    if (rootElement.tagName != "animated-vector") {
+    if (rootElement.tagName !== "animated-vector") {
         throw "File is not a valid animated vector drawable.";
     }
-    if (rootElement.children.length == 0 || rootElement.children[0].tagName != "aapt:attr" ||
-            rootElement.children[0].attributes["name"] != "android:drawable") {
+    if (rootElement.children.length === 0 || rootElement.children[0].tagName !== "aapt:attr" ||
+            rootElement.children[0].attributes["name"] !== "android:drawable") {
         throw "File is not a valid animated vector drawable, " +
                 "the 'aapt:attr' element with 'android:drawable' is not found.";
     }
     let drawable = rootElement.children[0];
-    if (drawable.children.length == 0 || drawable.children[0].tagName != "vector") {
+    if (drawable.children.length === 0 || drawable.children[0].tagName !== "vector") {
         throw "File is not a valid animated vector drawable, the 'vector' element is not found.";
     }
     processVector(drawable.children[0]);
@@ -258,7 +258,7 @@ function mapSkewToDash(element)
     for (let child of element.children) {
         mapSkewToDash(child);
     }
-    if (element.tagName != "path") {
+    if (element.tagName !== "path") {
         return;
     }
     let pathLen = new KSPathData(element.getProperty("d")).getTotalLength();
@@ -282,7 +282,7 @@ function mapSkewToDash(element)
                 break;
             }
         }
-        if (value != Infinity) {
+        if (value !== Infinity) {
             removeAllKeyframes(element, "ks:skewX");
         }
     }
@@ -342,7 +342,7 @@ function mapSkewToDash(element)
 
 function convertFillRule(rule)
 {
-    if (rule == "evenOdd") {
+    if (rule === "evenOdd") {
         return "evenodd";
     }
     return "nonzero";
@@ -361,13 +361,13 @@ function fixPathData(val)
 
 function processRenderable(children)
 {
-    if (!children || children.length == 0) {
+    if (!children || children.length === 0) {
         return;
     }
     let parentElem = elementStack[elementStack.length-1];
     let clipPathGroups = 0;
     for (let child of children) {
-        if (child.tagName == "group") {
+        if (child.tagName === "group") {
             let elem = ksdoc.createElement("g");
             copyProperty(child, "android:name", elem, "id");
             copyProperty(child, "android:translateX", elem, "ks:positionX");
@@ -376,7 +376,7 @@ function processRenderable(children)
             // pivot X,Y gets special processing
             let pivotX = child.attributes["android:pivotX"] || 0;
             let pivotY = child.attributes["android:pivotY"] || 0;
-            if (parseFloat(pivotX) != 0 || parseFloat(pivotY) != 0) {
+            if (parseFloat(pivotX) !== 0 || parseFloat(pivotY) !== 0) {
                 // create an extra element for pivot, because pivoting is equal to
                 // "translate(px,py) scale rotate translate(-px,-py)"
                 copyProperty(child, "android:pivotX", elem, "ks:anchorX");
@@ -406,7 +406,7 @@ function processRenderable(children)
             // restore parent element, because pivot element may have changed it
             parentElem = elementStack[elementStack.length-1];
 
-        } else if (child.tagName == "path") {
+        } else if (child.tagName === "path") {
             let elem = ksdoc.createElement("path");
             copyProperty(child, "android:name", elem, "id");
             copyColor(child, "android:fillColor", elem, "fill");
@@ -426,7 +426,7 @@ function processRenderable(children)
             copyProperty(child, "android:trimPathOffset", elem, "stroke-dashoffset");
             parentElem.append(elem);
 
-        } else if (child.tagName == "clip-path") {
+        } else if (child.tagName === "clip-path") {
             // wrap clip-path and elements in a group so that SVG clipPath works correctly
             let group = ksdoc.createElement("g");
             parentElem.append(group);
@@ -463,7 +463,7 @@ function androidColorToSvgColor(color, ignoreAlpha)
         return "#000000";
     }
     // #rgb or #rrggbb
-    if (color.length == 4 || color.length == 7) {
+    if (color.length === 4 || color.length === 7) {
         return color;
     }
     // convert to rgba()
@@ -488,11 +488,11 @@ function copyGradient(aaptObj, elem, svgProp)
         return;
     }
     for (let child of aaptObj.children) {
-        if (child.tagName == "gradient") {
+        if (child.tagName === "gradient") {
             let type = child.attributes["android:type"];
 
             let color;
-            if (type == "radial") {
+            if (type === "radial") {
                 let cx = child.attributes["android:centerX"] || 0;
                 let cy = child.attributes["android:centerY"] || 0;
                 let r = child.attributes["android:gradientRadius"];
@@ -532,7 +532,7 @@ function readStops(gradientObj)
 {
     let stops = [];
     for (let child of gradientObj.children) {
-        if (child.tagName == "item") {
+        if (child.tagName === "item") {
             let color = child.attributes["android:color"] || "#00000000";
             let offset = child.attributes["android:offset"] || 0;
             offset = clamp(offset, 0, 1);
@@ -557,14 +557,14 @@ function readStops(gradientObj)
 function copyColor(obj, androidProp, elem, svgProp)
 {
     // fill default value is "none"
-    if (svgProp == "fill") {
+    if (svgProp === "fill") {
         elem.setProperty(svgProp, "none");
     }
     // if androidProp and aapt:attr both are given, then it should be an error
     // if child aapt:attr exists for the given color, then parse it
     if (obj.children) {
         for (let child of obj.children) {
-            if (child.tagName == "aapt:attr" && child.attributes["name"] == androidProp) {
+            if (child.tagName === "aapt:attr" && child.attributes["name"] === androidProp) {
                 copyGradient(child, elem, svgProp);
                 return;
             }
@@ -584,7 +584,7 @@ function copyProperty(obj, androidProp, elem, svgProp, processor)
         return;
     }
     let val = obj.attributes[androidProp];
-    if (svgProp == "d" && val.startsWith("@")) {
+    if (svgProp === "d" && val.startsWith("@")) {
         val = "M7,5C7,5,4,7,1,7C-2,7,-6,5.5,-6,1C-6,-3.5,-2.5,-6,1,-6C4.5,-6,6,-3.5,6,-1" +
               "C6,1.5,4.5,4,3,4C1.5,4,3.7,-3.5,3.7,-3.5C3.7,-3.5,2,4,-0.6,4C-2.5,4,-3,2.41979,-3,0.5" +
               "C-3,-1.5,-1.5,-3.4,0.5,-3.4C2.5,-3.4,2.7,-1.5,2.7,0";
@@ -603,20 +603,20 @@ function copyProperty(obj, androidProp, elem, svgProp, processor)
 function processAnimations(rootObj)
 {
     for (let child of rootObj.children) {
-        if (child.tagName == "target") {
+        if (child.tagName === "target") {
             // check target exists
             let targetId = child.attributes["android:name"] || "";
             let elem = ksdoc.getElementById(targetId);
-            if (!elem || child.children.length == 0) {
+            if (!elem || child.children.length === 0) {
                 continue;
             }
             // check aaptattr exists
             let aaptattr = child.children[0];
-            if (aaptattr.tagName != "aapt:attr" ||
-                    aaptattr.attributes["name"] != "android:animation") {
+            if (aaptattr.tagName !== "aapt:attr" ||
+                    aaptattr.attributes["name"] !== "android:animation") {
                 continue;
             }
-            if (aaptattr.children.length != 1) {
+            if (aaptattr.children.length !== 1) {
                 throw "<aapt:aatr> must have exactly one child element";
             }
             processAnimatorOrSet(aaptattr.children[0], elem, 0);
@@ -627,8 +627,8 @@ function processAnimations(rootObj)
 // recursively process <set> or <objectAnimator> elements
 function processAnimatorOrSet(animOrSetObj, elem, beginTime)
 {
-    if (animOrSetObj.tagName == "set") {
-        let isSequence = animOrSetObj.attributes["android:ordering"] == "sequentially";
+    if (animOrSetObj.tagName === "set") {
+        let isSequence = animOrSetObj.attributes["android:ordering"] === "sequentially";
         let maxDur = 0;
         for (let animator of animOrSetObj.children) {
             let odur = processAnimatorOrSet(animator, elem, beginTime);
@@ -681,17 +681,17 @@ function interpolatorToCubic(intpo)
 // returns undefined if interpolator child element isn't found
 function readInterpolatorFromChild(obj)
 {
-    if (obj.children.length == 0) {
+    if (obj.children.length === 0) {
         return;
     }
     for (let child of obj.children) {
         // read only <pathInterpolator> under <aapt:attr>
-        if (child.tagName != "aapt:attr" || child.attributes["name"] != "android:interpolator" ||
-                child.children == 0) {
+        if (child.tagName !== "aapt:attr" || child.attributes["name"] !== "android:interpolator" ||
+                child.children === 0) {
             continue;
         }
         let intp = child.children[0];
-        if (intp.tagName != "pathInterpolator") {
+        if (intp.tagName !== "pathInterpolator") {
             // non-supported interpolator, use linear for it
             return "linear";
         }
@@ -699,14 +699,14 @@ function readInterpolatorFromChild(obj)
         let cmds = new KSPathData(pathData).commands;
 
         // check steps
-        if (cmds.length == 3 &&
-                cmds[0].command == 'M' && cmds[0].x == 0 && cmds[0].y == 0 &&
-                cmds[1].command == 'L' &&
-                cmds[2].command == 'L' && cmds[2].x == 1 && cmds[2].y == 1) {
-            if (cmds[1].x == 1 && cmds[1].y == 0) {
+        if (cmds.length === 3 &&
+                cmds[0].command === 'M' && cmds[0].x === 0 && cmds[0].y === 0 &&
+                cmds[1].command === 'L' &&
+                cmds[2].command === 'L' && cmds[2].x === 1 && cmds[2].y === 1) {
+            if (cmds[1].x === 1 && cmds[1].y === 0) {
                 return "steps(1)";
             }
-            if (cmds[1].x == 0 && cmds[1].y == 1) {
+            if (cmds[1].x === 0 && cmds[1].y === 1) {
                 return "steps(1, start)";
             }
         }
@@ -714,15 +714,15 @@ function readInterpolatorFromChild(obj)
         // check cubic beziers
         let cmd0 = cmds[0].command.toUpperCase();
         let cmd1 = cmds[1].command.toUpperCase();
-        if (cmds.length != 2 || cmd0 != 'M' || cmd1 != 'C') {
+        if (cmds.length !== 2 || cmd0 !== 'M' || cmd1 !== 'C') {
             // non-supported path, use linear for it
             return "linear";
         }
-        if (cmds[0].x != 0 || cmds[0].y != 0) {
+        if (cmds[0].x !== 0 || cmds[0].y !== 0) {
             // non-supported path, use linear for it
             return "linear";
         }
-        if (cmds[1].x != 1 || cmds[1].y != 1) {
+        if (cmds[1].x !== 1 || cmds[1].y !== 1) {
             // non-supported path, use linear for it
             return "linear";
         }
@@ -750,7 +750,7 @@ const animationPropertyNameToSvgProperty = {
 
 function convertValue(svgProp, value)
 {
-    if (svgProp == "fill" || svgProp == "stroke") {
+    if (svgProp === "fill" || svgProp === "stroke") {
         value = androidColorToSvgColor(value, true);
     }
     return value;
@@ -758,7 +758,7 @@ function convertValue(svgProp, value)
 
 function processObjectAnimator(animator, elem, beginTime)
 {
-    if (animator.tagName != "objectAnimator") {
+    if (animator.tagName !== "objectAnimator") {
         return 0;
     }
     let startOffset = parseFloat(animator.attributes["android:startOffset"] || 0);
@@ -769,7 +769,7 @@ function processObjectAnimator(animator, elem, beginTime)
     if (duration < 0) {
         throw "Duration cannot be negative";
     }
-    if (duration == 0) { // no real animation, just return
+    if (duration === 0) { // no real animation, just return
         return startOffset;
     }
     let interpolator = animator.attributes["android:interpolator"] || "accelerate_decelerate";
@@ -777,7 +777,7 @@ function processObjectAnimator(animator, elem, beginTime)
 
     let hasPropertyValuesHolder = false;
     for (let propValHolder of animator.children) {
-        if (propValHolder.tagName == "propertyValuesHolder") {
+        if (propValHolder.tagName === "propertyValuesHolder") {
             processPropertyValueHolder(propValHolder, elem, beginTime,
                 startOffset, duration, interpolator, repeatCount);
             hasPropertyValuesHolder = true;
@@ -799,7 +799,7 @@ function processPropertyValueHolder(obj, elem, beginTime, startOffset, duration,
     if (!propertyName || !animationPropertyNameToSvgProperty[propertyName]) {
         return;
     }
-    if (propertyName == "alpha" && elem.parentElement) { // only root can have alpha animations
+    if (propertyName === "alpha" && elem.parentElement) { // only root can have alpha animations
         return;
     }
 
@@ -825,7 +825,7 @@ function processPropertyValueHolder(obj, elem, beginTime, startOffset, duration,
 
     removeKeyframes(elem, svgProp, beginTime+startOffset, beginTime+startOffset+duration);
 
-    if (obj.tagName == "propertyValuesHolder") {
+    if (obj.tagName === "propertyValuesHolder") {
         if (processKeyframes(obj, elem, beginTime, startOffset, duration, interpolator,
                              svgProp, easing)) {
             setRepeat(elem, svgProp, beginTime, startOffset, duration, repeatCount);
@@ -848,7 +848,7 @@ function processKeyframes(obj, elem, beginTime, startOffset, duration, interpola
 {
     let foundKeyframes = false;
     for (let keyframe of obj.children) {
-        if (keyframe.tagName == "keyframe") {
+        if (keyframe.tagName === "keyframe") {
             foundKeyframes = true;
             let fraction = keyframe.attributes["android:fraction"];
             let value = keyframe.attributes["android:value"];
@@ -879,12 +879,12 @@ function setRepeat(elem, svgProp, beginTime, startOffset, duration, repeatCount)
     if (!repeatCount) {
         return;
     }
-    if (repeatCount == "infinite" || repeatCount == -1) {
+    if (repeatCount === "infinite" || repeatCount === -1) {
         elem.timeline().setKeyframeParams(svgProp, { repeatEnd: Infinity });
         return;
     }
     repeatCount = parseFloat(repeatCount);
-    if (repeatCount != Math.floor(repeatCount)) {
+    if (repeatCount !== Math.floor(repeatCount)) {
         throw "Fractions are not allowed for repeatCount: "+repeatCount;
     }
     if (repeatCount < 1) { // this includes negative values (they should really disable animation)
@@ -913,18 +913,18 @@ function unseparateKeyframes(element, propX, propY)
     // must have the same repeatEnd, keyframe count, times and easings
     let paramsX = element.timeline().getKeyframeParams(propX);
     let paramsY = element.timeline().getKeyframeParams(propY);
-    if (paramsX.repeatEnd != paramsY.repeatEnd) {
+    if (paramsX.repeatEnd !== paramsY.repeatEnd) {
         return;
     }
     let kfsX = element.timeline().getKeyframes(propX);
     let kfsY = element.timeline().getKeyframes(propY);
-    if (kfsX.length != kfsY.length) {
+    if (kfsX.length !== kfsY.length) {
         return;
     }
     for (let i = 0; i < kfsX.length; ++i) {
         let kfx = kfsX[i];
         let kfy = kfsY[i];
-        if (kfx.time != kfy.time || kfx.easing != kfy.easing) {
+        if (kfx.time !== kfy.time || kfx.easing !== kfy.easing) {
             return;
         }
     }
