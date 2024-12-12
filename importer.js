@@ -374,8 +374,8 @@ function processRenderable(children)
             copyProperty(child, "android:translateY", elem, "ks:positionY");
 
             // pivot X,Y gets special processing
-            let pivotX = child.attributes["android:pivotX"] || 0;
-            let pivotY = child.attributes["android:pivotY"] || 0;
+            let pivotX = child.attributes["android:pivotX"] ?? 0;
+            let pivotY = child.attributes["android:pivotY"] ?? 0;
             if (parseFloat(pivotX) !== 0 || parseFloat(pivotY) !== 0) {
                 // create an extra element for pivot, because pivoting is equal to
                 // "translate(px,py) scale rotate translate(-px,-py)"
@@ -493,8 +493,8 @@ function copyGradient(aaptObj, elem, svgProp)
 
             let color;
             if (type === "radial") {
-                let cx = child.attributes["android:centerX"] || 0;
-                let cy = child.attributes["android:centerY"] || 0;
+                let cx = child.attributes["android:centerX"] ?? 0;
+                let cy = child.attributes["android:centerY"] ?? 0;
                 let r = child.attributes["android:gradientRadius"];
                 if (!r) {
                     throw "android:gradientRadius missing";
@@ -502,13 +502,13 @@ function copyGradient(aaptObj, elem, svgProp)
                 color = "-ks-radial-gradient("+r+" "+cx+" "+cy+" "+cx+" "+cy+" ";
 
             } else { // default linear
-                let sx = child.attributes["android:startX"] || 0;
-                let sy = child.attributes["android:startY"] || 0;
-                let ex = child.attributes["android:endX"] || 0;
-                let ey = child.attributes["android:endY"] || 0;
+                let sx = child.attributes["android:startX"] ?? 0;
+                let sy = child.attributes["android:startY"] ?? 0;
+                let ex = child.attributes["android:endX"] ?? 0;
+                let ey = child.attributes["android:endY"] ?? 0;
                 color = "-ks-linear-gradient("+sx+" "+sy+" "+ex+" "+ey+" ";
             }
-            let tileMode = child.attributes["android:tileMode"] || "clamp";
+            let tileMode = child.attributes["android:tileMode"] ?? "clamp";
             let svgSpread = svgSpreadMap[tileMode];
             let stops = readStops(child);
             color += svgSpread + " matrix(1 0 0 1 0 0), " + stops.join(", ")+")";
@@ -533,8 +533,8 @@ function readStops(gradientObj)
     let stops = [];
     for (let child of gradientObj.children) {
         if (child.tagName === "item") {
-            let color = child.attributes["android:color"] || "#00000000";
-            let offset = child.attributes["android:offset"] || 0;
+            let color = child.attributes["android:color"] ?? "#00000000";
+            let offset = child.attributes["android:offset"] ?? 0;
             offset = clamp(offset, 0, 1);
             appendStopToArray(stops, (offset*100)+"%", color);
         }
@@ -543,9 +543,9 @@ function readStops(gradientObj)
         return stops;
     }
     stops = [];
-    let startColor = gradientObj.attributes["android:startColor"] || "#00000000";
+    let startColor = gradientObj.attributes["android:startColor"] ?? "#00000000";
     let centerColor = gradientObj.attributes["android:centerColor"];
-    let endColor = gradientObj.attributes["android:endColor"] || "#00000000";
+    let endColor = gradientObj.attributes["android:endColor"] ?? "#00000000";
     appendStopToArray(stops, "0%", startColor);
     if (centerColor) {
         appendStopToArray(stops, "50%", centerColor);
@@ -605,7 +605,7 @@ function processAnimations(rootObj)
     for (let child of rootObj.children) {
         if (child.tagName === "target") {
             // check target exists
-            let targetId = child.attributes["android:name"] || "";
+            let targetId = child.attributes["android:name"] ?? "";
             let elem = ksdoc.getElementById(targetId);
             if (!elem || child.children.length === 0) {
                 continue;
@@ -761,8 +761,8 @@ function processObjectAnimator(animator, elem, beginTime)
     if (animator.tagName !== "objectAnimator") {
         return 0;
     }
-    let startOffset = parseFloat(animator.attributes["android:startOffset"] || 0);
-    let duration = parseFloat(animator.attributes["android:duration"] || 300);
+    let startOffset = parseFloat(animator.attributes["android:startOffset"] ?? 0);
+    let duration = parseFloat(animator.attributes["android:duration"] ?? 300);
     if (startOffset < 0) {
         startOffset = 0;
     }
@@ -772,7 +772,7 @@ function processObjectAnimator(animator, elem, beginTime)
     if (duration === 0) { // no real animation, just return
         return startOffset;
     }
-    let interpolator = animator.attributes["android:interpolator"] || "accelerate_decelerate";
+    let interpolator = animator.attributes["android:interpolator"] ?? "accelerate_decelerate";
     let repeatCount = animator.attributes["android:repeatCount"];
 
     let hasPropertyValuesHolder = false;

@@ -103,7 +103,7 @@ function copyId(element, obj, suffix)
     if (!hasAvdAnimatableKeyframes(element)) {
         return;
     }
-    let id = element.getProperty("id") || element.androidId;
+    let id = element.getProperty("id") ?? element.androidId;
 
     // generate id for elements which don't have it
     if (!id) {
