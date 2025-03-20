@@ -59,7 +59,7 @@ Exporting has few limitations:
 
  * gradients can have maximum three color stops and their position is always at the start,
    center and end of the gradient
- * text gets converted to paths
+ * text gets converted to paths (no emojis)
  * symbols create duplicate code, which can create large files
  * skew is not supported because AVDs don't support skewing
  * clipping paths only support path shape animations (no transform animations)
@@ -80,9 +80,8 @@ for details, but here's a summary:
  * Gradients require API level 24+
  * The even-odd fill rule requires API level 24+
  * [The support library](https://developer.android.com/guide/topics/graphics/vector-drawable-resources.html#vector-drawables-backward-solution)
-   can show some animated vector drawables at API level 11+
- * [The support library](https://developer.android.com/guide/topics/graphics/vector-drawable-resources.html#vector-drawables-backward-solution)
-   can show some static vector drawables at API level 7+
+   can show some static vector drawables at API level 7+ and animated vector drawables 
+   at API level 11+
 
 ## License
 
